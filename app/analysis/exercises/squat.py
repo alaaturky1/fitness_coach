@@ -33,7 +33,8 @@ class SquatAnalyzer(ExerciseAnalyzer):
     Conservative squat heuristics (2D camera view):
     - Depth proxy via knee flexion angle (hip-knee-ankle). Standing is ~180°.
       A "parallel-ish" squat often reaches ~90°–110° depending on definition/model.
-      We treat <= 110° as reaching meaningful depth, and <= 95° as very good depth.
+      We count a clear down->up cycle even if it is shallow, then score/flag depth separately.
+      This keeps the rep counter responsive with mobile camera sampling.
     - Excessive forward torso lean is flagged when torso-to-vertical angle > 55°.
       (Deep squats can lean; we keep this threshold conservative to avoid false positives.)
     - Knee valgus proxy (2D): knee drifting medially relative to ankle by > ~10% of hip width.
@@ -102,22 +103,17 @@ class SquatAnalyzer(ExerciseAnalyzer):
                 self.state.current_rep_issues = set(issues)
                 self.state.bottom_reached = phase_knee <= self.minimum_bottom_threshold
         elif self.state.phase == "down":
-            # Consider rep completed when returning close to standing
-            if phase_knee is not None and phase_knee >= self.up_lockout_threshold and self.state.bottom_reached:
+            # Consider rep completed when returning close to standing.
+            # Shallow reps still count, but they are scored and reported as shallow.
+            if phase_knee is not None and phase_knee >= self.up_lockout_threshold:
                 self.state.phase = "up"
                 self.state.rep_count += 1
                 rep_inc = 1
-                if self.state.current_rep_min_knee is not None and self.state.current_rep_min_knee > 125:
+                if self.state.current_rep_min_knee is None or self.state.current_rep_min_knee > 125:
                     self.state.current_rep_issues.add("shallow_depth")
                 rep_score = self._score_rep(self.state.current_rep_min_knee, list(self.state.current_rep_issues))
                 rep_issues = sorted(self.state.current_rep_issues)
                 self.state.rep_summaries.append((rep_score, rep_issues))
-                self.state.current_rep_min_knee = None
-                self.state.current_rep_issues = set()
-                self.state.bottom_reached = False
-            elif phase_knee is not None and phase_knee >= self.up_lockout_threshold:
-                # Reset descent if user returned to top without meaningful depth.
-                self.state.phase = "up"
                 self.state.current_rep_min_knee = None
                 self.state.current_rep_issues = set()
                 self.state.bottom_reached = False
@@ -223,4 +219,3 @@ class SquatAnalyzer(ExerciseAnalyzer):
             "rep_count": self.state.rep_count,
             "rep_summaries": self.state.rep_summaries,
         }
-

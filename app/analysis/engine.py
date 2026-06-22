@@ -68,13 +68,14 @@ def _pose_failure_issue(error_code: str | None) -> str:
 
 def _visibility_detail_issues(missing: list[str], low_confidence: list[str]) -> list[str]:
     missing_set = set(missing)
+    low_set = set(low_confidence)
     issues: list[str] = []
 
-    if missing_set & LOWER_BODY_JOINTS:
+    if (missing_set | low_set) & LOWER_BODY_JOINTS:
         issues.append("lower_body_not_visible")
-    if missing_set & HIP_JOINTS:
+    if (missing_set | low_set) & HIP_JOINTS:
         issues.append("hips_not_visible")
-    if missing_set & SHOULDER_JOINTS:
+    if (missing_set | low_set) & SHOULDER_JOINTS:
         issues.append("shoulders_not_visible")
     if low_confidence:
         issues.append("landmarks_low_confidence")
@@ -279,6 +280,9 @@ class CoachingEngine:
                 debug={
                     "missing_joints": vis.missing,
                     "low_confidence_joints": vis.low_confidence,
+                    "present_joints": vis.present,
+                    "usable_sides": vis.usable_sides,
+                    "required_present_ratio": vis.required_present_ratio,
                     "visibility_issue_codes": detail_issues,
                     "min_joint_confidence": self.min_joint_confidence,
                     "avg_confidence": vis.avg_confidence,
@@ -366,6 +370,8 @@ class CoachingEngine:
                 "elapsed_ms": elapsed_ms,
                 "visibility_ok": vis.ok,
                 "avg_confidence": vis.avg_confidence,
+                "usable_sides": vis.usable_sides,
+                "required_present_ratio": vis.required_present_ratio,
                 "ml": learning.to_debug(),
             }
         )

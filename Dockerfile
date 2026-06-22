@@ -7,6 +7,7 @@ WORKDIR /app
 
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN python -c "import cv2; import mediapipe as mp; print('pose deps ok', cv2.__version__, mp.__version__)"
 
 COPY app /app/app
 

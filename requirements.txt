@@ -7,6 +7,7 @@ redis==5.0.1
 slowapi==0.1.9
 psutil==5.9.8
 structlog==23.2.0
-opencv-python==4.8.1.78
+# MediaPipe/OpenCV wheels used here target the NumPy 1.x ABI.
+numpy>=1.26.0,<2.0
+opencv-contrib-python==4.8.1.78
 mediapipe==0.10.7
-

@@ -30,7 +30,7 @@ class RateLimitConfig:
     
     # API endpoints (requests per minute)
     START_SESSION = "10/minute"
-    ANALYZE_FRAME = "60/minute"
+    ANALYZE_FRAME = "90/minute"
     END_SESSION = "10/minute"
     SESSION_SUMMARY = "30/minute"
     STATS = "20/minute"
@@ -79,8 +79,8 @@ class SessionRateLimiter:
         ]
         session_data["last_cleanup"] = current_time
         
-        # Check rate limit (60 frames per minute per session)
-        if len(session_data["frames"]) >= 60:
+        # Check rate limit (90 frames per minute per session)
+        if len(session_data["frames"]) >= 90:
             return False
         
         # Store server time, not client timestamp, so monotonic client clocks are supported.
