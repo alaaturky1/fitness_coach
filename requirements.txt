@@ -1,0 +1,12 @@
+fastapi==0.135.3
+starlette==1.0.0
+pydantic==2.12.5
+uvicorn[standard]==0.44.0
+python-multipart==0.0.24
+redis==5.0.1
+slowapi==0.1.9
+psutil==5.9.8
+structlog==23.2.0
+opencv-python==4.8.1.78
+mediapipe==0.10.7
+
