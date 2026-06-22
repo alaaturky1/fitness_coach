@@ -97,12 +97,20 @@ class LLMFeedbackClient:
         return data["choices"][0]["message"]["content"]
 
     def _system_prompt(self, language: Language) -> str:
-        dialect = "natural Egyptian Arabic" if language == Language.ar else "plain English"
+        dialect = "natural Egyptian Arabic that sounds good when read aloud by text-to-speech" if language == Language.ar else "plain English"
+        arabic_rules = ""
+        if language == Language.ar:
+            arabic_rules = (
+                "Use Arabic script only, except unavoidable product names. "
+                "Avoid English words, issue-code wording, tashkeel, emoji, markdown, abbreviations, and long punctuation. "
+                "Prefer short spoken coaching phrases with clear Egyptian wording. "
+            )
         return (
             "You are a real-time fitness coach. "
             f"Reply in {dialect}. "
             "Return exactly one short sentence, no markdown, no emojis. "
             "Keep it direct, encouraging, and actionable. "
+            f"{arabic_rules}"
             "Do not mention issue codes, scores, or that you are an AI. "
             "Do not give medical advice."
         )
