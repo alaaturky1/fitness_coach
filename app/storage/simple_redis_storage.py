@@ -60,6 +60,7 @@ class SimpleRedisSessions:
             'rep_cooldown_s': engine_state.rep_cooldown_s,
             'angle_smoother_state': engine_state.angle_smoother_state,
             'online_learner_state': engine_state.online_learner_state,
+            'engine_blob': engine_state.engine_blob,
         }
         
         session = RedisSession(

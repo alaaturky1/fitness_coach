@@ -96,15 +96,7 @@ class MetricsCollector:
             self.error_counts[f"{method} {path}"] += 1
             self.recent_errors.append(metric)
         
-        # Update session metrics
-        if session_id and session_id in self.sessions:
-            session = self.sessions[session_id]
-            session.frames_processed += 1
-            session.total_duration_ms += duration_ms
-            session.avg_frame_time_ms = session.total_duration_ms / session.frames_processed
-            session.last_activity = timestamp
-            if status_code >= 400:
-                session.errors += 1
+        # Per-session frame counters are updated explicitly via record_session_frame.
     
     def register_session(self, session_id: str) -> None:
         """Register a new session"""
@@ -113,6 +105,20 @@ class MetricsCollector:
                 session_id=session_id,
                 created_at=time.time()
             )
+
+    def record_session_frame(self, session_id: str, duration_ms: float, *, is_error: bool = False) -> None:
+        """Record frame-processing metrics without requiring HTTP middleware body reads."""
+        if session_id not in self.sessions:
+            self.register_session(session_id)
+        session = self.sessions.get(session_id)
+        if session is None:
+            return
+        session.frames_processed += 1
+        session.total_duration_ms += duration_ms
+        session.avg_frame_time_ms = session.total_duration_ms / session.frames_processed
+        session.last_activity = time.time()
+        if is_error:
+            session.errors += 1
     
     def remove_session(self, session_id: str) -> None:
         """Remove a session"""

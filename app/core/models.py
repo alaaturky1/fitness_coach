@@ -41,7 +41,7 @@ class FrameInput(BaseModel):
     frame_id: int | None = None
     image_b64: str | None = Field(
         default=None,
-        description="Optional fallback. Not analyzed server-side in this version.",
+        description="Optional image fallback. Server attempts pose extraction when joints/angles are absent.",
     )
 
 
@@ -96,4 +96,4 @@ class SessionSummaryResponse(BaseModel):
     idle_time_s: float
     rep_summaries: list[RepSummary]
     issues_tally: dict[str, int]
-
+    feedback: str | None = None

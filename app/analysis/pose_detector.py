@@ -15,6 +15,10 @@ class PoseDetectionResult:
     joints: List[Joint]
     confidence: float
     error: Optional[str] = None
+    error_code: Optional[str] = None
+    image_width: Optional[int] = None
+    image_height: Optional[int] = None
+    detector: str = "mediapipe"
 
 
 class PoseDetector:
@@ -53,16 +57,23 @@ class PoseDetector:
                 return PoseDetectionResult(
                     joints=[],
                     confidence=0.0,
-                    error="Failed to decode image"
+                    error="Failed to decode image",
+                    error_code="pose_image_decode_failed",
+                    detector="opencv",
                 )
-            
-            return self._detect_from_image(img)
+
+            result = self._detect_from_image(img)
+            result.image_height = int(img.shape[0])
+            result.image_width = int(img.shape[1])
+            return result
             
         except Exception as e:
             return PoseDetectionResult(
                 joints=[],
                 confidence=0.0,
-                error=f"Image processing error: {str(e)}"
+                error=f"Image processing error: {str(e)}",
+                error_code="pose_image_decode_failed",
+                detector="opencv",
             )
     
     def _detect_from_image(self, img: np.ndarray) -> PoseDetectionResult:
@@ -84,7 +95,8 @@ class PoseDetector:
             return PoseDetectionResult(
                 joints=[],
                 confidence=0.0,
-                error="No pose detected"
+                error="No pose detected",
+                error_code="pose_not_detected",
             )
         
         landmarks = results.pose_landmarks.landmark
@@ -133,7 +145,7 @@ class PoseDetector:
         
         return PoseDetectionResult(
             joints=joints,
-            confidence=avg_confidence
+            confidence=avg_confidence,
         )
     
     def _detect_fallback(self, img: np.ndarray) -> PoseDetectionResult:
@@ -141,7 +153,9 @@ class PoseDetector:
         return PoseDetectionResult(
             joints=[],
             confidence=0.0,
-            error=self.init_error or "Using fallback detection (MediaPipe not available)"
+            error=self.init_error or "Using fallback detection (MediaPipe not available)",
+            error_code="pose_detector_unavailable",
+            detector="fallback",
         )
 
 

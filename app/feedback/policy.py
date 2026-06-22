@@ -8,6 +8,13 @@ CRITICAL_ISSUES: set[str] = {
     "hips_sagging",
     "pose_detection_failed",
     "pose_detection_error",
+    "pose_detector_unavailable",
+    "pose_image_decode_failed",
+    "pose_not_detected",
+    "lower_body_not_visible",
+    "hips_not_visible",
+    "shoulders_not_visible",
+    "landmarks_low_confidence",
 }
 
 HIGH_ISSUES: set[str] = {

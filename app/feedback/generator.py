@@ -46,6 +46,34 @@ ISSUE_TO_TEXT_ESCAPED: dict[str, dict[str, str]] = {
         "en": "Reset your position so I can read your movement clearly.",
         "ar": "\\u0638\\u0628\\u0651\\u0637 \\u0648\\u0636\\u0639\\u0643 \\u062a\\u0627\\u0646\\u064a \\u0639\\u0634\\u0627\\u0646 \\u0623\\u0642\\u0631\\u0623 \\u062d\\u0631\\u0643\\u062a\\u0643 \\u0628\\u0648\\u0636\\u0648\\u062d.",
     },
+    "pose_detector_unavailable": {
+        "en": "Pose detector is offline on the server.",
+        "ar": "\\u0643\\u0627\\u0634\\u0641 \\u0627\\u0644\\u062d\\u0631\\u0643\\u0629 \\u063a\\u064a\\u0631 \\u0645\\u062a\\u0627\\u062d \\u0639\\u0644\\u0649 \\u0627\\u0644\\u0633\\u064a\\u0631\\u0641\\u0631.",
+    },
+    "pose_image_decode_failed": {
+        "en": "The camera frame could not be read. Restart the camera and try again.",
+        "ar": "\\u0635\\u0648\\u0631\\u0629 \\u0627\\u0644\\u0643\\u0627\\u0645\\u064a\\u0631\\u0627 \\u0644\\u0645 \\u062a\\u0642\\u0631\\u0623. \\u0627\\u0641\\u062a\\u062d \\u0627\\u0644\\u0643\\u0627\\u0645\\u064a\\u0631\\u0627 \\u062a\\u0627\\u0646\\u064a \\u0648\\u062c\\u0631\\u0628.",
+    },
+    "pose_not_detected": {
+        "en": "Step back so your full body is visible.",
+        "ar": "\\u0627\\u0631\\u062c\\u0639 \\u0644\\u0648\\u0631\\u0627 \\u0639\\u0634\\u0627\\u0646 \\u062c\\u0633\\u0645\\u0643 \\u0643\\u0644\\u0647 \\u064a\\u0628\\u0627\\u0646.",
+    },
+    "lower_body_not_visible": {
+        "en": "Step back until your hips, knees, and ankles are visible.",
+        "ar": "\\u0627\\u0631\\u062c\\u0639 \\u0644\\u0648\\u0631\\u0627 \\u0644\\u062d\\u062f \\u0645\\u0627 \\u0627\\u0644\\u062d\\u0648\\u0636 \\u0648\\u0627\\u0644\\u0631\\u0643\\u0628 \\u0648\\u0627\\u0644\\u0643\\u0627\\u062d\\u0644 \\u064a\\u0628\\u0627\\u0646\\u0648\\u0627.",
+    },
+    "hips_not_visible": {
+        "en": "Move the camera back until your hips are visible.",
+        "ar": "\\u0628\\u0639\\u062f \\u0627\\u0644\\u0643\\u0627\\u0645\\u064a\\u0631\\u0627 \\u0644\\u062d\\u062f \\u0645\\u0627 \\u0627\\u0644\\u062d\\u0648\\u0636 \\u064a\\u0628\\u0627\\u0646.",
+    },
+    "shoulders_not_visible": {
+        "en": "Keep your shoulders inside the frame.",
+        "ar": "\\u062e\\u0644\\u064a \\u0643\\u062a\\u0641\\u0643 \\u062f\\u0627\\u062e\\u0644 \\u0627\\u0644\\u0643\\u0627\\u062f\\u0631.",
+    },
+    "landmarks_low_confidence": {
+        "en": "Improve lighting and keep your body steady in the frame.",
+        "ar": "\\u062d\\u0633\\u0646 \\u0627\\u0644\\u0625\\u0636\\u0627\\u0621\\u0629 \\u0648\\u0627\\u062b\\u0628\\u062a \\u062c\\u0633\\u0645\\u0643 \\u062f\\u0627\\u062e\\u0644 \\u0627\\u0644\\u0643\\u0627\\u062f\\u0631.",
+    },
 }
 
 

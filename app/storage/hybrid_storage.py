@@ -109,6 +109,7 @@ class HybridSessions:
                         engine_state.rep_cooldown_s = redis_session.engine_data.get('rep_cooldown_s', 0.75)
                         engine_state.angle_smoother_state = redis_session.engine_data.get('angle_smoother_state', {})
                         engine_state.online_learner_state = redis_session.engine_data.get('online_learner_state', {})
+                        engine_state.engine_blob = redis_session.engine_data.get('engine_blob')
                         
                         engine = deserialize_engine(engine_state)
                         
@@ -157,6 +158,7 @@ class HybridSessions:
                             'rep_cooldown_s': engine_state.rep_cooldown_s,
                             'angle_smoother_state': engine_state.angle_smoother_state,
                             'online_learner_state': engine_state.online_learner_state,
+                            'engine_blob': engine_state.engine_blob,
                         },
                         ended=session.ended
                     )
@@ -170,7 +172,14 @@ class HybridSessions:
         memory_session = self._memory_sessions.get(session.session_id)
         if memory_session:
             memory_session.ended = session.ended
-            # Note: engine reference is already updated
+            memory_session.engine = session.engine
+        else:
+            with self._memory_sessions._lock:
+                self._memory_sessions._sessions[session.session_id] = Session(
+                    session_id=session.session_id,
+                    engine=session.engine,
+                    ended=session.ended,
+                )
     
     def delete_session(self, session_id: str) -> bool:
         if self.use_redis:

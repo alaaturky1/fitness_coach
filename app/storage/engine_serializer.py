@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import pickle
 from typing import Any
 
 from app.analysis.engine import CoachingEngine, RepRecord
@@ -35,10 +36,16 @@ class EngineState:
     # Smoother state (simplified)
     angle_smoother_state: dict[str, float] = field(default_factory=dict)
     online_learner_state: dict[str, Any] = field(default_factory=dict)
+    engine_blob: bytes | None = None
 
 
 def serialize_engine(engine: CoachingEngine) -> EngineState:
     """Serialize CoachingEngine to EngineState"""
+    try:
+        engine_blob = pickle.dumps(engine)
+    except (pickle.PickleError, TypeError, AttributeError):
+        engine_blob = None
+
     return EngineState(
         session_id=engine.session_id,
         language=engine.language.value,
@@ -58,14 +65,23 @@ def serialize_engine(engine: CoachingEngine) -> EngineState:
         last_rep_timestamp=engine.last_rep_timestamp,
         min_joint_confidence=engine.min_joint_confidence,
         rep_cooldown_s=engine.rep_cooldown_s,
-        angle_smoother_state=engine.angle_smoother._values.copy() if hasattr(engine.angle_smoother, '_values') else {},
+        angle_smoother_state=engine.angle_smoother.values.copy(),
         online_learner_state=engine.online_learner.to_state(),
+        engine_blob=engine_blob,
     )
 
 
 def deserialize_engine(state: EngineState) -> CoachingEngine:
     """Deserialize EngineState back to CoachingEngine"""
     from app.analysis.engine import new_session_engine
+
+    if state.engine_blob:
+        try:
+            engine = pickle.loads(state.engine_blob)
+            if isinstance(engine, CoachingEngine):
+                return engine
+        except (pickle.PickleError, AttributeError, TypeError, EOFError):
+            pass
     
     # Create new engine
     engine = new_session_engine(
@@ -94,7 +110,7 @@ def deserialize_engine(state: EngineState) -> CoachingEngine:
     # Restore smoother state
     if state.angle_smoother_state:
         for key, value in state.angle_smoother_state.items():
-            engine.angle_smoother._values[key] = value
+            engine.angle_smoother.values[key] = value
     engine.online_learner = OnlineFrameLearner.from_state(state.online_learner_state)
     
     # Restore analyzer if exercise is set

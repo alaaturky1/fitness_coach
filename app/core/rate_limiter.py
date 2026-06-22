@@ -77,13 +77,14 @@ class SessionRateLimiter:
             t for t in session_data["frames"] 
             if current_time - t < 60
         ]
+        session_data["last_cleanup"] = current_time
         
-        # Check rate limit (30 frames per minute per session)
-        if len(session_data["frames"]) >= 30:
+        # Check rate limit (60 frames per minute per session)
+        if len(session_data["frames"]) >= 60:
             return False
         
-        # Add current frame
-        session_data["frames"].append(timestamp)
+        # Store server time, not client timestamp, so monotonic client clocks are supported.
+        session_data["frames"].append(current_time)
         return True
     
     def cleanup_expired_sessions(self, max_age: float = 3600) -> None:

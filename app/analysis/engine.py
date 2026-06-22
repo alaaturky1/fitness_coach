@@ -25,6 +25,28 @@ EXERCISE_ALIASES = {
     "squat": "squat",
     "plank": "plank",
 }
+SUPPORTED_EXERCISES = {"pushup", "squat", "plank"}
+OPERATIONAL_ISSUES = {
+    "visibility_low",
+    "unknown_exercise",
+    "pose_detection_failed",
+    "pose_detection_error",
+    "pose_detector_unavailable",
+    "pose_image_decode_failed",
+    "pose_not_detected",
+    "lower_body_not_visible",
+    "hips_not_visible",
+    "shoulders_not_visible",
+    "landmarks_low_confidence",
+}
+POSE_FAILURE_ISSUES = {
+    "pose_detector_unavailable",
+    "pose_image_decode_failed",
+    "pose_not_detected",
+}
+LOWER_BODY_JOINTS = {"knee_l", "knee_r", "ankle_l", "ankle_r"}
+HIP_JOINTS = {"hip_l", "hip_r"}
+SHOULDER_JOINTS = {"shoulder_l", "shoulder_r"}
 
 
 def _normalize_exercise(name: str | None) -> str | None:
@@ -36,6 +58,28 @@ def _normalize_exercise(name: str | None) -> str | None:
 
 def _clamp_score(score: float) -> float:
     return max(0.0, min(100.0, score))
+
+
+def _pose_failure_issue(error_code: str | None) -> str:
+    if error_code in POSE_FAILURE_ISSUES:
+        return error_code
+    return "pose_detection_failed"
+
+
+def _visibility_detail_issues(missing: list[str], low_confidence: list[str]) -> list[str]:
+    missing_set = set(missing)
+    issues: list[str] = []
+
+    if missing_set & LOWER_BODY_JOINTS:
+        issues.append("lower_body_not_visible")
+    if missing_set & HIP_JOINTS:
+        issues.append("hips_not_visible")
+    if missing_set & SHOULDER_JOINTS:
+        issues.append("shoulders_not_visible")
+    if low_confidence:
+        issues.append("landmarks_low_confidence")
+
+    return issues
 
 
 @dataclass
@@ -77,7 +121,7 @@ class CoachingEngine:
         log = logging.getLogger("fitness")
 
         ex = _normalize_exercise(frame.exercise) or self.exercise or self._detect_exercise(frame)
-        if ex is None:
+        if ex is None or ex not in SUPPORTED_EXERCISES:
             learning = self._learn_from_frame(
                 angles={},
                 issues=["unknown_exercise"],
@@ -117,7 +161,7 @@ class CoachingEngine:
                 
                 if pose_result.error and pose_result.confidence < 0.3:
                     # Pose detection failed completely
-                    issues = ["pose_detection_failed"]
+                    issues = [_pose_failure_issue(pose_result.error_code)]
                     self._accumulate_time(frame.timestamp, active=False)
                     elapsed_ms = (perf_counter() - start) * 1000.0
                     learning = self._learn_from_frame(
@@ -146,7 +190,11 @@ class CoachingEngine:
                         lang=self.language,
                         debug={
                             "pose_error": pose_result.error,
+                            "pose_error_code": pose_result.error_code,
                             "pose_confidence": pose_result.confidence,
+                            "pose_detector": pose_result.detector,
+                            "image_width": pose_result.image_width,
+                            "image_height": pose_result.image_height,
                             "elapsed_ms": elapsed_ms,
                             "ml": learning.to_debug(),
                         },
@@ -199,7 +247,8 @@ class CoachingEngine:
         vis = check_visibility(pose, ex, min_confidence=self.min_joint_confidence)
         if not vis.ok and (frame.angles is None or len(frame.angles) == 0):
             # If client did not provide angles, and pose tracking is unstable, pause analysis to avoid bad feedback.
-            issues = ["visibility_low"]
+            detail_issues = _visibility_detail_issues(vis.missing, vis.low_confidence)
+            issues = ["visibility_low", *detail_issues]
             self._accumulate_time(frame.timestamp, active=False)
             elapsed_ms = (perf_counter() - start) * 1000.0
             feedback_issues = sort_issues(issues)
@@ -230,6 +279,8 @@ class CoachingEngine:
                 debug={
                     "missing_joints": vis.missing,
                     "low_confidence_joints": vis.low_confidence,
+                    "visibility_issue_codes": detail_issues,
+                    "min_joint_confidence": self.min_joint_confidence,
                     "avg_confidence": vis.avg_confidence,
                     "elapsed_ms": elapsed_ms,
                     "pose_extracted": frame.joints is not None,
@@ -295,8 +346,8 @@ class CoachingEngine:
             for issue in rep_issues:
                 self.issues_tally[issue] = self.issues_tally.get(issue, 0) + 1
 
-        # Analytics: treat "down" phase as active; otherwise idle.
-        active = bool((result.debug or {}).get("phase") == "down")
+        # Analytics: reps are active in the down phase; plank is a hold, so every valid frame is active.
+        active = ex == "plank" or bool((result.debug or {}).get("phase") == "down")
         self._accumulate_time(frame.timestamp, active=active)
 
         sorted_issues = sort_issues(list(result.issues))
@@ -413,9 +464,20 @@ class CoachingEngine:
         most_freq = None
         if self.issues_tally:
             # Exclude purely operational issues from "mistake" summary if present.
-            filtered = {k: v for k, v in self.issues_tally.items() if k not in ("visibility_low", "unknown_exercise")}
+            filtered = {k: v for k, v in self.issues_tally.items() if k not in OPERATIONAL_ISSUES}
             pool = filtered if filtered else self.issues_tally
             most_freq = max(pool.items(), key=lambda kv: kv[1])[0]
+
+        feedback_issues = [most_freq] if most_freq else []
+        feedback = pick_feedback(
+            self.language,
+            feedback_issues,
+            level=self.level,
+            exercise=self.exercise,
+            score=avg,
+            priority=issue_priority(most_freq) if most_freq else "low",
+            paused=False,
+        )
 
         return SessionSummaryResponse(
             session_id=self.session_id,
@@ -429,6 +491,7 @@ class CoachingEngine:
             idle_time_s=float(self.idle_time_s),
             rep_summaries=[RepSummary(rep_index=r.rep_index, score=r.score, issues=r.issues) for r in self.rep_records],
             issues_tally=dict(self.issues_tally),
+            feedback=feedback,
         )
 
     def _make_analyzer(self, ex: str) -> ExerciseAnalyzer:

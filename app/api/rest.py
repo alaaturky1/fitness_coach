@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from time import perf_counter
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.auth import require_api_key
@@ -23,6 +25,7 @@ def health() -> dict:
 
 @router.post("/start-session", response_model=StartSessionResponse)
 def start_session(req: StartSessionRequest) -> StartSessionResponse:
+    started_at = perf_counter()
     hybrid_sessions = get_hybrid_sessions()
     session = hybrid_sessions.create_session(language=req.language, level=req.level)
     
@@ -39,45 +42,129 @@ def start_session(req: StartSessionRequest) -> StartSessionResponse:
     from app.core.metrics import get_metrics
     metrics = get_metrics()
     metrics.register_session(session.session_id)
+    metrics.record_request(
+        method="POST",
+        path="/start-session",
+        status_code=200,
+        duration_ms=(perf_counter() - started_at) * 1000.0,
+        session_id=session.session_id,
+    )
     
     return StartSessionResponse(session_id=session.session_id, ws_url=f"/ws/session/{session.session_id}")
 
 
 @router.post("/analyze-frame", response_model=AnalyzeFrameResponse)
 def analyze_frame(req: AnalyzeFrameRequest) -> AnalyzeFrameResponse:
+    started_at = perf_counter()
     hybrid_sessions = get_hybrid_sessions()
     session = hybrid_sessions.get(req.session_id)
+    from app.core.metrics import get_metrics
+    metrics = get_metrics()
     if session is None:
+        metrics.record_request(
+            method="POST",
+            path="/analyze-frame",
+            status_code=404,
+            duration_ms=(perf_counter() - started_at) * 1000.0,
+            session_id=req.session_id,
+        )
         raise HTTPException(status_code=404, detail="session_not_found")
     
     # Check session-specific rate limit
     from app.core.rate_limiter import check_session_rate_limit
     if not check_session_rate_limit(req.session_id, req.frame.timestamp):
+        duration_ms = (perf_counter() - started_at) * 1000.0
+        metrics.record_session_frame(req.session_id, duration_ms, is_error=True)
+        metrics.record_request(
+            method="POST",
+            path="/analyze-frame",
+            status_code=429,
+            duration_ms=duration_ms,
+            session_id=req.session_id,
+        )
         raise HTTPException(status_code=429, detail="session_rate_limit_exceeded")
     
-    result = session.engine.analyze(req.frame)
+    try:
+        result = session.engine.analyze(req.frame)
+    except Exception:
+        duration_ms = (perf_counter() - started_at) * 1000.0
+        metrics.record_session_frame(req.session_id, duration_ms, is_error=True)
+        metrics.record_request(
+            method="POST",
+            path="/analyze-frame",
+            status_code=500,
+            duration_ms=duration_ms,
+            session_id=req.session_id,
+        )
+        raise
     hybrid_sessions.update_session(session)
+    duration_ms = (perf_counter() - started_at) * 1000.0
+    metrics.record_session_frame(req.session_id, duration_ms)
+    metrics.record_request(
+        method="POST",
+        path="/analyze-frame",
+        status_code=200,
+        duration_ms=duration_ms,
+        session_id=req.session_id,
+    )
     return result
 
 
 @router.post("/end-session", response_model=SessionSummaryResponse)
 def end_session(req: EndSessionRequest) -> SessionSummaryResponse:
+    started_at = perf_counter()
     hybrid_sessions = get_hybrid_sessions()
     session = hybrid_sessions.get(req.session_id)
+    from app.core.metrics import get_metrics
+    metrics = get_metrics()
     if session is None:
+        metrics.record_request(
+            method="POST",
+            path="/end-session",
+            status_code=404,
+            duration_ms=(perf_counter() - started_at) * 1000.0,
+            session_id=req.session_id,
+        )
         raise HTTPException(status_code=404, detail="session_not_found")
     session.ended = True
     hybrid_sessions.update_session(session)
-    return session.engine.summary()
+    summary = session.engine.summary()
+    metrics.remove_session(req.session_id)
+    metrics.record_request(
+        method="POST",
+        path="/end-session",
+        status_code=200,
+        duration_ms=(perf_counter() - started_at) * 1000.0,
+        session_id=req.session_id,
+    )
+    return summary
 
 
 @router.get("/session-summary/{session_id}", response_model=SessionSummaryResponse)
 def session_summary(session_id: str) -> SessionSummaryResponse:
+    started_at = perf_counter()
     hybrid_sessions = get_hybrid_sessions()
     session = hybrid_sessions.get(session_id)
+    from app.core.metrics import get_metrics
+    metrics = get_metrics()
     if session is None:
+        metrics.record_request(
+            method="GET",
+            path="/session-summary/{session_id}",
+            status_code=404,
+            duration_ms=(perf_counter() - started_at) * 1000.0,
+            session_id=session_id,
+        )
         raise HTTPException(status_code=404, detail="session_not_found")
-    return session.engine.summary()
+    summary = session.engine.summary()
+    metrics.record_request(
+        method="GET",
+        path="/session-summary/{session_id}",
+        status_code=200,
+        duration_ms=(perf_counter() - started_at) * 1000.0,
+        session_id=session_id,
+    )
+    return summary
 
 
 @router.get("/stats")
